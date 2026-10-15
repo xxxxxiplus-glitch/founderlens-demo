@@ -1,90 +1,8 @@
-"""
-FounderLens｜AI创业项目传播助手
-基于蚂蚁百灵大模型（Ling）生成项目分析、传播选题与内容初稿
-"""
-import html
-import json
-import os
-import re
-
+import os, json, re
+from pathlib import Path
 import requests
 import streamlit as st
-
-# 本地开发自动加载 .env（部署时也可直接配置系统环境变量）
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
-LING_API_KEY = os.getenv("LING_API_KEY", "")
-# 以下两项请以百灵开发者平台当前文档为准，可通过环境变量覆盖
-LING_BASE_URL = os.getenv("LING_BASE_URL", "https://api.ant-ling.com/v1").rstrip("/")
-LING_MODEL = os.getenv("LING_MODEL", "Ling-3.1-flash")
-
-PAGE_CSS = """
-<style>
-:root {color-scheme:light;}
-.stApp {background:#FAF8F3;color:#18324C;}
-[data-testid="stHeader"]{display:none !important;}
-[data-testid="stMainBlockContainer"]{max-width:1080px;padding:1.8rem 2rem 3rem;}
-[data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li {color:#42586A;}
-h1,h2,h3 {color:#18324C !important;letter-spacing:-.04em;}
-.brand-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:12px 0 24px;border-bottom:1px solid #E1E3DB;margin-bottom:28px;gap:20px;}
-.brand{font-size:24px;font-weight:750;letter-spacing:-1px;color:#18324C;display:flex;align-items:center;gap:10px;}
-.brand-mark{display:inline-grid;place-items:center;width:34px;height:34px;border:1.5px solid #234A68;border-radius:50%;font-size:20px;}
-.model-pill{font-size:11px;white-space:nowrap;color:#657E63;background:#EFF3EA;border:1px solid #DFE7D8;border-radius:30px;padding:7px 12px;}
-.hero-title{font-size:38px !important;font-weight:650 !important;line-height:1.35 !important;margin:14px 0 13px !important;padding:0 !important;}
-.hero-title em{font-style:normal;color:#6D8469;}
-.hero-desc{font-size:14px !important;color:#788591 !important;line-height:1.9;margin-bottom:24px !important;}
-.st-key-input_panel{background:#FFFEFB;border:1px solid #E2E3DD;border-radius:15px;padding:25px !important;box-shadow:0 8px 30px #18324C04;}
-.section-label{font-size:12px;font-weight:600;letter-spacing:1px;color:#597083;padding:7px 0;}
-.section-label span{color:#8A9AA5;font-weight:400;margin-right:10px;}
-[data-testid="stTextArea"] textarea{background:#F7F8F6 !important;color:#284257 !important;border-radius:8px !important;font-size:14px !important;line-height:1.9 !important;padding:17px !important;caret-color:#234A68;}
-[data-testid="stTextArea"] textarea:focus{border-color:#819FAD !important;box-shadow:0 0 0 1px #819FAD !important;}
-[data-testid="stTextArea"] textarea::placeholder{color:#9AA4AB !important;}
-[data-testid="stWidgetLabel"] p{font-size:12px !important;color:#597083 !important;}
-.stButton>button{border-radius:7px;border-color:#DDE2DF;color:#456079;background:#FFFEFB;font-size:12px;min-height:40px;}
-.stButton>button:hover{border-color:#6D879D;color:#234A68;background:#F4F7F7;}
-.stButton>button[kind="primary"]{background:#234A68;border:1px solid #234A68;color:#fff;min-height:49px;font-weight:500;letter-spacing:1px;}
-.stButton>button[kind="primary"] p{color:#fff !important;}
-.stButton>button[kind="primary"]:hover{background:#173B57;border-color:#173B57;}.stButton>button[kind="primary"]:disabled{opacity:.45;cursor:not-allowed;}
-[data-testid="stRadio"]>div[role="radiogroup"]{gap:22px;}
-[data-testid="stRadio"] label p{font-size:13px !important;color:#42586A !important;}
-[data-testid="stCaptionContainer"] p{font-size:11px !important;color:#697C88 !important;line-height:1.7;}
-.result-heading{margin:40px 0 15px;display:flex;justify-content:space-between;align-items:center;gap:20px;}
-.result-heading h2{font-size:26px !important;font-weight:600;letter-spacing:-1px;margin:6px 0 0;padding:0;}
-.result-badge{font-size:11px;color:#6C8466;padding:7px 12px;border:1px solid #DCE5D7;border-radius:30px;white-space:nowrap;}
-[data-testid="stTabs"] [role="tablist"]{gap:30px;border-bottom:1px solid #DFE3DE;}
-[data-testid="stTabs"] [role="tab"]{font-size:14px;color:#8B969E;padding:15px 0;}
-[data-testid="stTabs"] [role="tab"][aria-selected="true"]{color:#234A68;}
-[data-testid="stTabs"] [data-baseweb="tab-highlight"]{background:#234A68;}
-.one-liner{background:#EDF2ED;border:1px solid #DFE7DE;border-radius:10px;padding:22px 25px;margin:23px 0 20px;}
-.one-liner small{font-size:10px;color:#7C8D77;letter-spacing:2px;}
-.one-liner p{font-size:20px !important;color:#284739 !important;line-height:1.65;margin:9px 0 0;}
-.analysis-card{background:#FFFEFB;border:1px solid #E4E5DE;border-radius:9px;padding:22px;min-height:215px;margin:0 0 8px;}
-.analysis-card .kicker{font-size:10px;color:#9BA79D;letter-spacing:2px;}
-.analysis-card h3{font-size:15px !important;letter-spacing:0;margin:10px 0 17px;padding:0;}
-.analysis-card ul{padding-left:16px;margin:0;}
-.analysis-card li{font-size:13px;line-height:1.85;margin:0 0 10px;color:#677D87 !important;}
-.topic-card>div{min-width:0;overflow-wrap:anywhere;}.topic-number{flex-shrink:0;}.topic-card{background:#FFFEFB;border:1px solid #E2E5DE;border-radius:10px;padding:24px;display:flex;gap:24px;margin:16px 0;}
-.topic-number{font-size:27px;font-weight:300;color:#A1B0A1;}
-.topic-tag{font-size:10px;color:#8B795C;letter-spacing:1px;}
-.topic-card h3{font-size:18px !important;line-height:1.6;letter-spacing:-.4px;margin:7px 0 8px;padding:0;}
-.topic-card p{font-size:13px !important;color:#7B8993 !important;line-height:1.8;margin:0;}
-.draft-paper{background:#FFFEFB;border:1px solid #E2E5DE;border-radius:10px;padding:32px 38px;margin:18px 0;color:#42586A;font-size:14px;line-height:2.05;overflow-wrap:anywhere;}
-.draft-paper h3{font-size:23px !important;line-height:1.6;margin:0 0 24px;padding:0;letter-spacing:-.6px;}
-.draft-paper .body{white-space:pre-wrap;}
-.notice{font-size:11px;color:#7B6C50;line-height:1.8;border-left:2px solid #D6C9AC;padding:2px 12px;margin:22px 0;}
-.footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 24px;border-top:1px solid #E1E3DB;margin-top:32px;padding:22px 0 calc(80px + env(safe-area-inset-bottom,0px));color:#71818B;font-size:11px;letter-spacing:.2px;line-height:1.8;}.footer span{min-width:0;max-width:100%;overflow-wrap:anywhere;}
-@media(max-width:640px){[data-testid="stMainBlockContainer"]{padding:1rem 1.1rem 2rem;}.brand-row{margin-bottom:24px;padding:8px 0 18px;}.brand{font-size:21px;gap:7px;}.brand-mark{width:29px;height:29px;font-size:17px;}.model-pill{font-size:10px;padding:5px 9px;}.hero-title{font-size:30px !important;margin:0 0 8px !important;}.hero-desc{font-size:13px !important;margin-bottom:20px !important;}.st-key-input_panel{padding:16px !important;}.analysis-card{min-height:0;}.draft-paper{padding:22px;}.topic-card{padding:18px;gap:14px;}.result-heading h2{font-size:23px !important;}.footer{font-size:10px;}}
-
-</style>
-"""
-
-EXAMPLE = """以下为虚构项目，仅用于功能测试：
-
-「开口练」是一款面向职场新人的英语口语练习工具。用户可以选择英文面试、会议发言、客户沟通等场景，与AI进行模拟对话，并在结束后获得表达和语法建议。产品目前处于原型测试阶段，尚未提供融资、用户规模和学习效果数据。"""
+import streamlit.components.v1 as components
 
 SYSTEM_PROMPT = """你是「FounderLens」AI创业项目传播助手，服务对象是品牌运营与内容策划人员。请严格依据用户提供的项目介绍完成分析与创作，规则如下：
 
@@ -105,7 +23,6 @@ JSON结构（所有文案使用中文）：
 }
 """
 
-
 def user_prompt(intro: str, platform: str) -> str:
     if platform == "公众号":
         draft_rule = "公众号长图文初稿：标题 + 约500字连贯段落正文，语气专业但不端着，适合品牌号/行业号发布。"
@@ -113,7 +30,6 @@ def user_prompt(intro: str, platform: str) -> str:
         draft_rule = "小红书笔记初稿：标题（可带emoji）+ 约300字口语化正文，表达具体自然，不得虚构亲身体验或用户反馈，结尾附5-10个#话题标签。"
     return (f"目标平台：{platform}\n内容要求：{draft_rule}\n"
             f"请生成恰好3个传播选题，优先适配该平台（可含1个通用选题）。\n\n【项目介绍】\n{intro}")
-
 
 def call_ling(intro: str, platform: str) -> str:
     if not intro.strip() or len(intro) > 12000 or platform not in ("公众号", "小红书"):
@@ -150,7 +66,6 @@ def call_ling(intro: str, platform: str) -> str:
         raise RuntimeError("百灵本次未返回正文，请重新点击开始分析。")
     return content
 
-
 def extract_json(text: str) -> dict:
     if not isinstance(text, str) or not text.strip():
         raise RuntimeError("百灵本次未返回正文，请重新点击开始分析。")
@@ -165,7 +80,6 @@ def extract_json(text: str) -> dict:
         return json.loads(text)
     except json.JSONDecodeError:
         raise RuntimeError("模型返回内容解析失败，请重试或简化输入。")
-
 
 def normalize(data: dict) -> dict:
     if not isinstance(data, dict):
@@ -196,118 +110,36 @@ def normalize(data: dict) -> dict:
         })
     return result
 
-
-def compose_full_text(data: dict, platform: str) -> str:
-    lines = [f"一句话介绍：{data['one_liner']}", "", "目标用户："]
-    lines += [f"- {u}" for u in data["target_users"]]
-    lines += ["", "核心痛点："] + [f"- {p}" for p in data["pain_points"]]
-    lines += ["", "产品卖点："] + [f"- {s}" for s in data["selling_points"]]
-    lines += ["", "传播选题："]
-    for i, t in enumerate(data["topics"], 1):
-        lines.append(f"{i}. {t['title']}（{t['platform']}）— {t['reason']}")
-    lines += ["", f"{platform}内容初稿：", "", data["draft"]]
-    lines += ["", "—— 内容由 AI 根据输入资料生成，仅作为初稿；推断、具体事实与宣传表述须人工核实后发布。"]
-    return "\n".join(lines)
+UI_HTML='<!doctype html>\n<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f7f7f5"><meta name="description" content="输入项目介绍，生成项目分析、传播选题与内容初稿。"><title>FounderLens · 项目传播工作台</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 40 40\'%3E%3Crect width=\'40\' height=\'40\' rx=\'12\' fill=\'%231b1c1e\'/%3E%3Ccircle cx=\'19\' cy=\'18\' r=\'9\' fill=\'none\' stroke=\'white\' stroke-width=\'2\'/%3E%3Cpath d=\'m25 25 6 6\' stroke=\'white\' stroke-width=\'2\'/%3E%3C/svg%3E"><style>:root{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;color:#202124;background:#f7f7f5;font-synthesis:none;color-scheme:light;--muted:#797b80;--line:#e7e7e4}*{box-sizing:border-box}body{margin:0}button,textarea{font:inherit}button,a{-webkit-tap-highlight-color:transparent}button{cursor:pointer}button:disabled{cursor:not-allowed}button:focus-visible,a:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:3px solid #9cb9df;outline-offset:3px}button{transition:background .16s,color .16s,box-shadow .16s,transform .16s}button:not(:disabled):active{transform:translateY(1px)}a{color:inherit;text-decoration:none}[hidden]{display:none!important}.skip{position:absolute;left:20px;top:-60px;background:white;padding:10px;z-index:10}.skip:focus{top:10px}.topbar{height:76px;padding:0 5%;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:24px}.brand{display:flex;align-items:center;gap:11px;font-size:19px;font-weight:650;letter-spacing:-.6px}.brand svg{width:32px;height:32px}.product-name{border-left:1px solid var(--line);padding-left:24px;font-size:13px;color:#77797d}.provider{margin-left:auto;font-size:12px;color:#64676a;display:flex;align-items:center;gap:7px}.provider i,.result-footer i{width:5px;height:5px;background:#768b73;display:inline-block;border-radius:50%}main{max-width:1320px;margin:auto;padding:52px 5% 0}.intro-heading{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:32px;gap:20px}h1{font-size:34px;font-weight:600;letter-spacing:-1.5px;line-height:1.35;margin:0 0 13px}.intro-heading p{font-size:14px;color:#717378;margin:0;line-height:1.6}.workspace-tag{font-size:12px;color:#93959a;padding-bottom:3px}.workspace{display:grid;grid-template-columns:minmax(310px,400px) minmax(0,1fr);gap:22px;align-items:start}.editor,.output{background:#fff;border:1px solid #e2e3e0;border-radius:16px;min-width:0;box-shadow:0 2px 6px #20212402}.editor{padding:25px}.editor-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:17px}.editor-heading label{font-size:14px;font-weight:600}.quiet{border:0;background:transparent;color:#6d7075;font-size:12px;padding:5px 0}.quiet:hover,.sample-link:hover{color:#202124}.quiet span{margin-left:4px}#intro{display:block;resize:vertical;width:100%;height:260px;min-height:160px;max-height:550px;border:1px solid #e8e8e5;border-radius:10px;background:#fafaf9;padding:17px;color:#303236;font-size:14px;line-height:1.9;transition:border-color .16s;white-space:pre-wrap}#intro::placeholder{color:#989a9d}#intro:focus{background:white;border-color:#999b9f;outline:none;box-shadow:0 0 0 3px #20212406}.input-meta{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:#9a9ca0;margin:11px 0 28px;font-variant-numeric:tabular-nums}.platform-label{font-size:12px;font-weight:550;margin-bottom:12px}.platforms{display:flex;gap:9px;margin-bottom:24px}.platform{display:flex;align-items:center;text-align:left;gap:9px;flex:1;min-width:0;padding:12px 10px;border:1px solid #e7e7e5;background:#fff;border-radius:9px;color:#33363a;font-size:12px}.platform.selected{border-color:#8b8e91;background:#f8f8f7;box-shadow:0 0 0 1px #8b8e9110}.platform small{display:block;margin-top:5px;color:#929498;font-size:9px;white-space:nowrap}.platform-icon{flex-shrink:0;display:grid;place-items:center;width:25px;height:25px;border-radius:7px;font-size:11px;font-weight:550}.red{background:#fff0f0;color:#bd5962}.green{background:#edf5ef;color:#5b8d6c}.check{font-size:10px;margin-left:auto;visibility:hidden;color:#333}.selected .check{visibility:visible}.generate{width:100%;height:47px;border:1px solid #202124;border-radius:9px;background:#202124;color:white;display:flex;align-items:center;justify-content:center;gap:15px;font-size:13px;font-weight:550}.generate svg{width:17px;height:17px}.generate:hover:not(:disabled){background:#36383b;box-shadow:0 3px 8px #20212414}.generate:disabled{opacity:.28}.editor-note{text-align:center;font-size:10px;color:#9a9ca0;margin:13px 0 0}.error{background:#fff2ef;border:1px solid #f1d6d0;border-radius:7px;color:#a64e40;padding:12px;font-size:12px;line-height:1.6}.output{min-height:560px;overflow:hidden}.output-header{min-height:79px;display:flex;align-items:center;justify-content:space-between;padding:21px 26px;border-bottom:1px solid #eeeef0;gap:12px}.output-header h2{font-size:14px;font-weight:600;margin:0 0 7px}.output-subtitle{font-size:10px;color:#999b9f}.output-actions{display:flex;gap:7px}.icon-button{width:31px;height:31px;display:grid;place-items:center;background:white;border:1px solid #e6e7e7;border-radius:7px;color:#696c70}.icon-button:hover{background:#f4f4f2;color:#202124}.icon-button svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round}.empty{min-height:476px;padding:66px 20px 26px;text-align:center;display:flex;flex-direction:column;align-items:center}.paper-stack{width:95px;height:100px;position:relative;margin-bottom:25px}.paper{position:absolute;width:67px;height:85px;border:1px solid #dedfdb;border-radius:8px;background:#fff;box-shadow:0 4px 12px #20212404}.paper.back{transform:rotate(-12deg);left:6px;top:4px;background:#f3f3f0}.paper.front{transform:rotate(6deg);left:23px;top:8px;padding:13px 10px}.paper svg{height:31px;width:31px;stroke:#737a72;stroke-width:1.3;fill:none;display:block;margin-bottom:6px}.paper span{display:block;height:3px;border-radius:2px;background:#e9eae6;margin:5px 0}.paper span:nth-of-type(2){width:70%}.paper i{position:absolute;right:-8px;bottom:9px;border-radius:50%;height:24px;width:24px;background:#e8eee5;border:3px solid white}.paper i:after{content:\'✓\';font-style:normal;font-size:12px;color:#7a8c70}.empty h3,.loading h3{font-size:17px;font-weight:550;letter-spacing:-.3px;margin:0 0 12px}.empty p,.loading p{font-size:12px;line-height:1.9;color:#929499;margin:0}.sample-link{font-size:12px;color:#747c70;border:0;background:none;margin:22px 0 0;padding:5px}.sample-link span{margin-left:7px}.output-outline{border-top:1px solid #f0f0ee;padding-top:22px;display:flex;justify-content:center;gap:28px;margin-top:44px;width:100%;max-width:370px;color:#aaacae;font-size:10px}.output-outline span:before{content:\'·\';margin-right:7px}.footer{display:flex;justify-content:space-between;gap:15px;font-size:10px;color:#a0a2a5;padding:24px 1px max(24px,env(safe-area-inset-bottom));line-height:1.8}.footer>span:first-child{color:#8d9094;letter-spacing:-.2px}.footer-dot{margin:0 5px}.tabs{display:flex;gap:24px;margin:0 26px;border-bottom:1px solid #eeeef0}.tabs button{border:0;background:none;font-size:12px;padding:19px 0 15px;position:relative;color:#97999d;white-space:nowrap}.tabs button[aria-selected=true]{color:#202124;font-weight:600}.tabs button[aria-selected=true]:after{content:\'\';position:absolute;bottom:-1px;height:2px;left:0;right:0;background:#202124;border-radius:2px}.tabs button span{font-size:9px;padding:1px 4px;border-radius:3px;background:#f0f0ee;color:#8b8e90;margin-left:4px}.result-body{padding:25px 26px;min-height:380px}.positioning{font-size:20px;font-weight:550;letter-spacing:-.4px;line-height:1.6;margin:0;padding:0 0 24px;border-bottom:1px solid #eeeef0}.analysis-section{display:grid;grid-template-columns:72px 1fr;gap:18px;padding:20px 0;border-bottom:1px solid #f0f0ee}.analysis-section:last-child{border:0;padding-bottom:0}.analysis-section h3{font-size:11px;color:#9a9c9f;margin:4px 0;font-weight:500}.analysis-section ul{margin:0;padding:0;list-style:none;font-size:12px;line-height:1.8;color:#55595e}.analysis-section li+li{margin-top:7px}.topic{display:flex;gap:18px;padding:22px 0;border-bottom:1px solid #eeeef0}.topic:first-child{padding-top:0}.topic:last-child{border:0;padding-bottom:0}.topic-number{font-size:12px;color:#a8abae;letter-spacing:1px;margin-top:5px;font-variant-numeric:tabular-nums}.topic h3{font-size:15px;line-height:1.65;font-weight:550;margin:0 0 9px}.topic p{font-size:12px;color:#8b8e92;line-height:1.8;margin:0}.topic small{display:inline-block;background:#f3f4f1;color:#808779;font-size:9px;padding:3px 6px;border-radius:4px;margin-top:12px}.draft-title{font-size:21px;font-weight:600;line-height:1.6;letter-spacing:-.4px;margin:0 0 23px}.draft-text{white-space:pre-wrap;font-size:13px;line-height:2.05;color:#565a60;overflow-wrap:anywhere}.result-footer{display:flex;align-items:center;justify-content:space-between;padding:16px 26px;border-top:1px solid #eeeef0;color:#a0a2a5;font-size:10px}.result-footer i{margin-right:6px;width:4px;height:4px}.result-footer button{font-size:11px}.stale{margin:14px 26px 0;background:#fbf7ed;color:#8b7850;border:1px solid #f0e8d4;padding:10px 12px;border-radius:6px;font-size:11px;line-height:1.6}.loading{text-align:center;padding:85px 35px 40px;min-height:476px}.spinner{width:29px;height:29px;border:2px solid #e5e6e2;border-top-color:#737e6e;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 30px}.loading-note{font-size:10px!important;margin-top:32px!important}.skeleton{height:9px;width:70%;border-radius:8px;background:#f1f2ef;margin:30px auto 0}.skeleton.short{width:50%;margin-top:15px}.skeleton+.skeleton:not(.short){margin-top:15px;width:60%}.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);border-radius:9px;padding:12px 22px;background:#26282b;color:white;box-shadow:0 4px 24px #0002;font-size:12px;z-index:20;max-width:90%;text-align:center}#manual-copy{margin:20px 26px;font-size:12px;color:#777}#manual-copy textarea{width:100%;height:200px;font-size:12px;margin-top:12px;line-height:1.7;border:1px solid #ddd;border-radius:6px;padding:10px;resize:vertical}section{min-width:0}.result-body{overflow-wrap:anywhere}@keyframes spin{to{transform:rotate(360deg)}}@media(min-width:1440px){main{padding-top:65px}.intro-heading{margin-bottom:38px}}@media(max-width:900px){.workspace{grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:16px}main{padding:32px 4% 0}.topbar{padding:0 4%}.editor{padding:20px}.platform{gap:7px;padding:11px 8px}.platform small{display:none}.workspace-tag{display:none}.output-header{padding:20px}.tabs{margin:0 20px;gap:20px}.result-body{padding:24px 20px}.output-outline{gap:14px}.analysis-section{grid-template-columns:60px 1fr;gap:12px}}@media(max-width:680px){.topbar{height:64px;padding:0 20px;gap:14px}.brand{font-size:17px;gap:9px}.brand svg{width:29px;height:29px}.product-name{display:none}.provider{font-size:10px}main{padding:29px 16px 0}.intro-heading{margin:0 4px 23px}h1{font-size:28px;letter-spacing:-1px;margin-bottom:9px}.intro-heading p{font-size:12px}.workspace{grid-template-columns:1fr;gap:18px}.editor{padding:20px;border-radius:13px}#intro{height:180px;font-size:16px;padding:14px;line-height:1.8}.input-meta{margin:10px 0 23px;font-size:10px}.platforms{margin-bottom:20px}.platform{padding:12px;gap:9px}.platform small{display:block;font-size:9px}.platform-label{font-size:12px}.generate{height:46px;font-size:13px}.editor-note{margin-top:12px}.output{border-radius:13px;min-height:0}.output-header{padding:19px 20px;min-height:76px}.empty{min-height:360px;padding:37px 20px 24px}.paper-stack{transform:scale(.85);margin-bottom:12px}.empty h3{font-size:15px}.empty p{font-size:11px}.sample-link{margin-top:17px}.output-outline{margin-top:26px;font-size:9px;padding-top:18px;gap:23px}.footer{font-size:9px;padding:22px 3px 28px}.footer>span:first-child{display:none}.footer>span:last-child{width:100%;text-align:center}.result-body{min-height:0;padding:24px 20px}.positioning{font-size:18px}.analysis-section{grid-template-columns:62px 1fr;gap:14px}.analysis-section ul{font-size:13px}.topic h3{font-size:15px}.topic p{font-size:12px}.draft-title{font-size:19px}.draft-text{font-size:14px}.result-footer{padding:15px 20px}.stale{margin:14px 20px 0}.loading{min-height:360px;padding:60px 25px 35px}}@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}\n\nhtml,body{overflow-x:hidden}body{height:auto;min-height:0} .topbar .brand{pointer-events:none}@media(max-width:380px){.platform small{display:none}.platform{padding:11px 8px}}\n</style></head>\n<body><a class="skip" href="#intro">跳到项目介绍</a><header class="topbar"><a class="brand" href="/" aria-label="FounderLens 首页"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="10" fill="currentColor"/><circle cx="14.5" cy="14" r="7" fill="none" stroke="white" stroke-width="1.6"/><path d="m20 20 5 5M11 14h7M14.5 10.5v7" stroke="white" stroke-width="1.6" stroke-linecap="round"/></svg><span>FounderLens</span></a><span class="product-name">项目传播工作台</span><span class="provider"><i></i>蚂蚁百灵</span></header>\n<main><section class="intro-heading"><div><h1>把项目，讲清楚。</h1><p>从一段介绍，到值得发布的第一稿。</p></div><span class="workspace-tag">你的创作，从这里开始</span></section><div class="workspace"><aside class="editor"><form id="project-form"><div class="editor-heading"><label for="intro">项目资料</label><button type="button" id="example" class="quiet">填入示例 <span aria-hidden="true">↗</span></button></div><textarea id="intro" name="intro" maxlength="12000" placeholder="介绍一下你的项目。&#10;&#10;它为谁解决什么问题？有哪些核心功能？" aria-describedby="input-help" required></textarea><div class="input-meta"><span id="input-help">请勿输入敏感信息</span><span id="count">0 / 12,000</span></div><div class="platform-label" id="platform-label">发布平台</div><div class="platforms" role="group" aria-labelledby="platform-label"><button class="platform selected" type="button" data-platform="小红书" aria-pressed="true"><span class="platform-icon red">小</span><span>小红书<small>轻松、自然的笔记</small></span><span class="check">✓</span></button><button class="platform" type="button" data-platform="公众号" aria-pressed="false"><span class="platform-icon green">文</span><span>公众号<small>完整、有条理的图文</small></span><span class="check">✓</span></button></div><button class="generate" id="generate" disabled><span id="generate-label">生成传播方案</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12m-5-5 5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button><p id="error" class="error" role="alert" hidden></p><p class="editor-note">基于项目资料创作，发布前请核实。</p></form></aside>\n<section class="output" aria-label="传播方案"><div class="output-header"><div><h2>传播方案</h2><span class="output-subtitle" id="output-subtitle">项目分析 · 选题 · 内容初稿</span></div><div class="output-actions" id="output-actions" hidden><button class="icon-button" id="copy" title="复制完整方案" aria-label="复制完整方案"><svg viewBox="0 0 20 20" aria-hidden="true"><rect x="7" y="7" width="9" height="10" rx="2"/><path d="M12 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/></svg></button><button class="icon-button" id="download" title="下载完整方案" aria-label="下载完整方案"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 2v10m-4-4 4 4 4-4M3 13v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3"/></svg></button></div></div><p id="stale" class="stale" hidden>资料或平台已更新，重新生成即可更新方案。</p>\n<div id="empty" class="empty"><div class="paper-stack" aria-hidden="true"><div class="paper back"></div><div class="paper front"><svg viewBox="0 0 28 28"><path d="M5 7h18M5 13h13M5 19h16"/></svg><span></span><span></span><i></i></div></div><h3>好内容，从读懂项目开始。</h3><p>填入项目介绍，选择发布平台。<br>你的分析、选题和初稿会出现在这里。</p><button type="button" id="empty-example" class="sample-link">用示例体验一下 <span aria-hidden="true">→</span></button><div class="output-outline"><span>项目分析</span><span>3 个传播选题</span><span>平台内容初稿</span></div></div>\n<div class="loading" id="loading" role="status" hidden><div class="spinner"></div><h3>正在整理你的传播方案</h3><p>提炼项目价值，寻找合适的表达。</p><div class="skeleton"></div><div class="skeleton short"></div><div class="skeleton"></div><p class="loading-note">通常需要几十秒，请稍候。</p></div>\n<div id="result" hidden><div class="tabs" role="tablist" aria-label="方案内容"><button role="tab" id="tab-analysis" aria-selected="true" aria-controls="analysis" tabindex="0" data-tab="analysis">项目分析</button><button role="tab" id="tab-topics" aria-selected="false" aria-controls="topics" tabindex="-1" data-tab="topics">传播选题 <span>3</span></button><button role="tab" id="tab-draft" aria-selected="false" aria-controls="draft" tabindex="-1" data-tab="draft">内容初稿</button></div><div class="result-body"><section id="analysis" role="tabpanel" aria-labelledby="tab-analysis" tabindex="0"></section><section id="topics" role="tabpanel" aria-labelledby="tab-topics" tabindex="0" hidden></section><section id="draft" role="tabpanel" aria-labelledby="tab-draft" tabindex="0" hidden></section></div><div class="result-footer"><span><i></i>真实调用百灵生成</span><button class="quiet" id="copy-current">复制当前内容</button></div></div>\n<details id="manual-copy" hidden><summary>手动复制全文</summary><textarea readonly aria-label="完整方案文本"></textarea></details></section></div><footer class="footer"><span>FounderLens</span><span>Powered by 蚂蚁百灵 <span class="footer-dot">·</span> AI 初稿，请核实后使用</span></footer></main><div class="toast" id="toast" role="status" hidden></div><script type="module">\nconst send=(type,rest={})=>window.parent.postMessage({isStreamlitMessage:true,type,...rest},\'*\');\nlet pending=null;\nconst fetch=(_url,options)=>new Promise((resolve,reject)=>{\n const id=crypto.randomUUID();pending={id,resolve,reject};\n send(\'streamlit:setComponentValue\',{value:{id,...JSON.parse(options.body)},dataType:\'json\'});\n setTimeout(()=>{if(pending?.id===id){pending=null;reject(new Error(\'生成超时，请稍后重试。\'));}},95000);\n});\nwindow.addEventListener(\'message\',event=>{\n if(event.source!==window.parent||event.data?.type!==\'streamlit:render\')return;\n const reply=event.data.args?.response;\n if(pending&&reply?.id===pending.id){const resolve=pending.resolve;pending=null;resolve({ok:!reply.error,json:async()=>reply.error?{error:reply.error}:reply.result});}\n});\nlet frameHeight=0;function resize(){const height=document.documentElement.scrollHeight;if(height!==frameHeight){frameHeight=height;send(\'streamlit:setFrameHeight\',{height});}}\nnew ResizeObserver(resize).observe(document.body);\nsend(\'streamlit:componentReady\',{apiVersion:1});setTimeout(resize,50);\nconst $ = id => document.getElementById(id);\nconst example = \'以下为虚构项目，仅用于功能测试：\\n\\n「开口练」是一款面向职场新人的英语口语练习工具。用户可以选择英文面试、会议发言、客户沟通等场景，与 AI 进行模拟对话，并在结束后获得表达和语法建议。产品目前处于原型测试阶段，尚未提供融资、用户规模和学习效果数据。\';\nlet platform=\'小红书\', result=null, resultPlatform=\'\', resultIntro=\'\', tab=\'analysis\', busy=false, toastTimer;\nconst esc=s=>String(s).replace(/[&<>"\']/g,c=>({\'&\':\'&amp;\',\'<\':\'&lt;\',\'>\':\'&gt;\',\'"\':\'&quot;\',"\'":\'&#39;\'}[c]));\nfunction sync(){ $(\'count\').textContent=$(\'intro\').value.length.toLocaleString()+\' / 12,000\'; $(\'generate\').disabled=busy||!$(\'intro\').value.trim(); $(\'stale\').hidden=!result||($(\'intro\').value===resultIntro&&platform===resultPlatform); }\nfunction fillExample(){if(busy)return;$(\'intro\').value=example;sync();$(\'intro\').focus();}\n$(\'example\').onclick=fillExample;$(\'empty-example\').onclick=fillExample;$(\'intro\').oninput=sync;\ndocument.querySelectorAll(\'[data-platform]\').forEach(button=>button.onclick=()=>{if(busy)return;platform=button.dataset.platform;document.querySelectorAll(\'[data-platform]\').forEach(b=>{b.classList.toggle(\'selected\',b===button);b.setAttribute(\'aria-pressed\',String(b===button));});sync();});\nfunction selectTab(name,focus=false){tab=name;document.querySelectorAll(\'[data-tab]\').forEach(b=>{const selected=b.dataset.tab===name;b.setAttribute(\'aria-selected\',String(selected));b.tabIndex=selected?0:-1;if(selected&&focus)b.focus();});[\'analysis\',\'topics\',\'draft\'].forEach(id=>$(id).hidden=id!==name);}\nconst tabButtons=[...document.querySelectorAll(\'[data-tab]\')];tabButtons.forEach((b,i)=>{b.onclick=()=>selectTab(b.dataset.tab);b.onkeydown=e=>{const k=e.key;if(![\'ArrowLeft\',\'ArrowRight\',\'Home\',\'End\'].includes(k))return;e.preventDefault();const n=k===\'Home\'?0:k===\'End\'?2:(i+(k===\'ArrowRight\'?1:2))%3;selectTab(tabButtons[n].dataset.tab,true);};});\nfunction sectionText(name){if(!result)return \'\';if(name===\'analysis\')return `一句话介绍：${result.one_liner}\\n\\n目标用户：\\n${result.target_users.join(\'\\n\')}\\n\\n核心痛点：\\n${result.pain_points.join(\'\\n\')}\\n\\n产品卖点：\\n${result.selling_points.join(\'\\n\')}`;if(name===\'topics\')return result.topics.map((t,i)=>`${i+1}. ${t.title}\\n${t.reason}`).join(\'\\n\\n\');return result.draft;}\nfunction fullText(){return `${sectionText(\'analysis\')}\\n\\n传播选题：\\n${sectionText(\'topics\')}\\n\\n${resultPlatform}初稿：\\n${sectionText(\'draft\')}\\n\\nAI 初稿，请核实后使用。`;}\nfunction notify(text){clearTimeout(toastTimer);$(\'toast\').textContent=text;$(\'toast\').hidden=false;toastTimer=setTimeout(()=>$(\'toast\').hidden=true,2400);}\nasync function copy(text){try{await navigator.clipboard.writeText(text);notify(\'已复制\');}catch{$(\'manual-copy\').hidden=false;$(\'manual-copy\').open=true;const area=$(\'manual-copy\').querySelector(\'textarea\');area.value=text;area.focus();area.select();notify(\'请长按或按 ⌘C / Ctrl+C 复制\');}}\n$(\'copy\').onclick=()=>copy(fullText());$(\'copy-current\').onclick=()=>copy(sectionText(tab));\n$(\'download\').onclick=()=>{if(!result)return;const url=URL.createObjectURL(new Blob([\'\\ufeff\'+fullText()],{type:\'text/plain;charset=utf-8\'}));const a=document.createElement(\'a\');a.href=url;a.download=`FounderLens-${resultPlatform}-传播方案.txt`;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);notify(\'已下载完整方案\');};\nfunction render(){\n $(\'analysis\').innerHTML=`<p class="positioning">${esc(result.one_liner)}</p>`+[[\'目标用户\',\'target_users\'],[\'核心痛点\',\'pain_points\'],[\'产品卖点\',\'selling_points\']].map(([name,key])=>`<div class="analysis-section"><h3>${name}</h3><ul>${result[key].map(v=>`<li>${esc(v)}</li>`).join(\'\')}</ul></div>`).join(\'\');\n $(\'topics\').innerHTML=result.topics.map((t,i)=>`<article class="topic"><span class="topic-number">0${i+1}</span><div><h3>${esc(t.title)}</h3><p>${esc(t.reason)}</p><small>${esc(t.platform||resultPlatform)}</small></div></article>`).join(\'\');\n const lines=result.draft.trim().split(\'\\n\');$(\'draft\').innerHTML=`<h3 class="draft-title">${esc(lines.shift())}</h3><div class="draft-text">${esc(lines.join(\'\\n\').trim())}</div>`;\n $(\'output-subtitle\').textContent=resultPlatform+\' · 已生成\';$(\'output-actions\').hidden=false;$(\'manual-copy\').hidden=true;$(\'result\').hidden=false;selectTab(\'analysis\');\n}\n$(\'project-form\').onsubmit=async event=>{\n event.preventDefault();if(busy||!$(\'intro\').value.trim())return;const intro=$(\'intro\').value, chosenPlatform=platform;busy=true;$(\'error\').hidden=true;$(\'empty\').hidden=true;$(\'result\').hidden=true;$(\'loading\').hidden=false;$(\'output-actions\').hidden=true;$(\'manual-copy\').hidden=true;$(\'stale\').hidden=true;$(\'generate-label\').textContent=\'正在生成…\';$(\'intro\').disabled=true;$(\'example\').disabled=true;document.querySelectorAll(\'[data-platform]\').forEach(b=>b.disabled=true);sync();\n try{const response=await fetch(\'/api/analyze\',{method:\'POST\',headers:{\'Content-Type\':\'application/json\'},body:JSON.stringify({intro,platform:chosenPlatform}),signal:AbortSignal.timeout(95000)});let data;try{data=await response.json();}catch{throw new Error(\'服务暂时无法连接，请稍后重试。\');}if(!response.ok)throw new Error(data.error||\'生成失败，请稍后重试。\');result=data;resultPlatform=chosenPlatform;resultIntro=intro;render();notify(\'传播方案已生成\');if(matchMedia(\'(max-width:680px)\').matches)$(\'result\').scrollIntoView({behavior:matchMedia(\'(prefers-reduced-motion:reduce)\').matches?\'instant\':\'smooth\',block:\'start\'});\n }catch(error){$(\'error\').textContent=error.name===\'TimeoutError\'?\'生成超时，请稍后再试。\':error.message||\'网络连接失败，请稍后重试。\';$(\'error\').hidden=false;if(result)render();else $(\'empty\').hidden=false;\n }finally{busy=false;$(\'loading\').hidden=true;$(\'generate-label\').textContent=\'生成传播方案\';$(\'intro\').disabled=false;$(\'example\').disabled=false;document.querySelectorAll(\'[data-platform]\').forEach(b=>b.disabled=false);sync();}\n};sync();\n</script></body></html>\n'
 
 
-def fill_example():
-    st.session_state["intro"] = EXAMPLE
-
-
-def render_result(data: dict, platform: str):
-    st.markdown(
-        "<div class='result-heading'><div><h2>生成结果</h2></div>"
-        f"<span class='result-badge'>已生成 · {html.escape(platform)}</span></div>",
-        unsafe_allow_html=True,
-    )
-    tabs = st.tabs(["项目分析", "传播选题", f"{platform}初稿"])
-    with tabs[0]:
-        st.markdown(
-            "<div class='one-liner'><small>一句话定位</small>"
-            f"<p>{html.escape(data['one_liner'])}</p></div>", unsafe_allow_html=True,
-        )
-        for col, title, label, field in zip(
-            st.columns(3), ["目标用户", "核心痛点", "产品卖点"],
-            ["01", "02", "03"], ["target_users", "pain_points", "selling_points"],
-        ):
-            with col:
-                items = "".join(f"<li>{html.escape(str(x))}</li>" for x in data[field])
-                st.markdown(f"<div class='analysis-card'><span class='kicker'>{label}</span>"
-                            f"<h3>{title}</h3><ul>{items}</ul></div>", unsafe_allow_html=True)
-    with tabs[1]:
-        for i, t in enumerate(data["topics"], 1):
-            st.markdown(
-                f"<div class='topic-card'><span class='topic-number'>0{i}</span><div>"
-                f"<span class='topic-tag'>{html.escape(t['platform'])} · 传播选题</span>"
-                f"<h3>{html.escape(t['title'])}</h3><p>{html.escape(t['reason'])}</p></div></div>",
-                unsafe_allow_html=True,
-            )
-    with tabs[2]:
-        lines = data["draft"].strip().split("\n", 1)
-        title = html.escape(lines[0].lstrip("# "))
-        body = html.escape(lines[1].strip() if len(lines) > 1 else "")
-        st.markdown(f"<div class='draft-paper'><h3>{title}</h3><div class='body'>{body}</div></div>",
-                    unsafe_allow_html=True)
-        with st.expander("复制初稿"):
-            st.caption("点击下方文本右上角的复制图标，即可复制全文。")
-            st.code(data["draft"], language=None, wrap_lines=True)
-    with st.expander("复制或下载完整方案"):
-        full_text = compose_full_text(data, platform)
-        st.caption("点击文本右上角的复制图标，或下载为文本文件。")
-        st.code(full_text, language=None, wrap_lines=True)
-        st.download_button("下载完整方案 ↓", full_text, file_name=f"FounderLens-{platform}传播方案.txt", mime="text/plain")
-    st.markdown("<div class='notice'>AI 初稿，具体事实与宣传表述请核实后发布。</div>",
-                unsafe_allow_html=True)
-
-
-def main():
-    st.set_page_config(page_title="FounderLens｜AI创业项目传播助手", page_icon="◉", layout="centered")
-    st.markdown(PAGE_CSS, unsafe_allow_html=True)
-    st.markdown(
-        "<div class='brand-row'><div class='brand'><span class='brand-mark'>◉</span>FounderLens</div>"
-        f"<span class='model-pill'>● 百灵 {html.escape(LING_MODEL)}</span></div>"
-        "<h1 class='hero-title'>把项目，<em>讲清楚。</em></h1>"
-        "<p class='hero-desc'>输入项目介绍，生成传播选题与文案。</p>",
-        unsafe_allow_html=True,
-    )
-    with st.container(key="input_panel"):
-        left, right = st.columns([3, 1])
-        with left:
-            st.markdown("<div class='section-label'>项目介绍</div>", unsafe_allow_html=True)
-        with right:
-            st.button("填入示例", on_click=fill_example, use_container_width=True)
-        intro = st.text_area(
-            "项目介绍", label_visibility="collapsed", height=155, key="intro", max_chars=12000,
-            placeholder="你的项目为谁解决什么问题？",
-        )
-        st.caption("请勿输入敏感信息")
-        st.markdown("<div class='section-label'>发布平台</div>", unsafe_allow_html=True)
-        platform = st.radio("内容发布平台", ["小红书", "公众号"], horizontal=True, label_visibility="collapsed", key="selected_platform")
-        generate = st.button("生成方案", type="primary", use_container_width=True, disabled=not intro.strip() or not LING_API_KEY)
-        if not LING_API_KEY:
-            st.warning("服务尚未配置，请由应用维护者配置百灵 API Key 后重启。")
-        if generate:
-            with st.spinner("正在生成，请稍候…"):
-                try:
-                    data = normalize(extract_json(call_ling(intro.strip(), platform)))
-                    st.session_state["result"] = data
-                    st.session_state["platform"] = platform
-                    st.session_state["result_intro"] = intro
-                except requests.Timeout:
-                    st.error("百灵本次响应超时，请稍后重试。上次成功生成的方案仍保留在下方。" if st.session_state.get("result") else "百灵本次响应超时，请稍后重试。")
-                except requests.RequestException:
-                    st.error("暂时无法连接百灵服务，请稍后重试。")
-                except RuntimeError as e:
-                    st.error("生成失败：" + str(e).replace(LING_API_KEY, "[密钥已隐藏]"))
-                except Exception:
-                    st.error("本次生成结果暂时无法读取，请重新生成。")
-    if st.session_state.get("result"):
-        if st.session_state.get("platform") != platform or st.session_state.get("result_intro") != intro:
-            st.caption("资料或平台已修改；下方仍是上次结果，重新生成即可更新。")
-        render_result(st.session_state["result"], st.session_state.get("platform", "公众号"))
-    st.markdown("<div class='footer'>Powered by 蚂蚁百灵 · AI 初稿，人工把关</div>", unsafe_allow_html=True)
-
-
-
-if __name__ == "__main__":
-    main()
+st.set_page_config(page_title="FounderLens · 项目传播工作台",page_icon="◉",layout="wide")
+st.markdown("""<style>
+.stApp{background:#f7f7f5} [data-testid="stHeader"],#MainMenu,footer{display:none!important}
+[data-testid="stMainBlockContainer"]{max-width:none!important;padding:0!important}
+[data-testid="stVerticalBlock"]{gap:0}iframe{display:block;border:0} [data-testid="stElementToolbar"]{display:none}
+</style>""",unsafe_allow_html=True)
+LING_API_KEY=os.getenv("LING_API_KEY") or os.getenv("ANTLING_API_KEY", "")
+LING_BASE_URL="https://api.ant-ling.com/v1"
+LING_MODEL="Ling-3.1-flash"
+ui_dir=Path(__file__).parent/".founderlens-ui"
+ui_dir.mkdir(exist_ok=True)
+ui_file=ui_dir/"index.html"
+if not ui_file.exists() or ui_file.read_text()!=UI_HTML:ui_file.write_text(UI_HTML)
+frontend=components.declare_component("founderlens_studio",path=str(ui_dir))
+request=frontend(response=st.session_state.get("response"),default=None,key="founderlens")
+if isinstance(request,dict) and request.get("id") and request["id"]!=st.session_state.get("handled"):
+ st.session_state["handled"]=request["id"]
+ reply={"id":request["id"]}
+ try:
+  if not LING_API_KEY:raise RuntimeError("生成服务尚未配置，请联系演示提供者。")
+  intro=request.get("intro");platform=request.get("platform")
+  if not isinstance(intro,str) or not intro.strip() or len(intro)>12000 or platform not in ("公众号","小红书"):raise RuntimeError("请输入有效的项目介绍并选择平台。")
+  reply["result"]=normalize(extract_json(call_ling(intro,platform)))
+  if "虚构" in intro and "虚构" not in reply["result"]["draft"]:reply["result"]["draft"]="虚构项目演示｜"+reply["result"]["draft"]
+ except requests.Timeout:reply["error"]="生成超时，请稍后重试。"
+ except requests.RequestException:reply["error"]="百灵网络暂不可用，请稍后重试。"
+ except RuntimeError as exc:reply["error"]=str(exc)
+ except Exception:reply["error"]="生成暂未完成，请重试。"
+ st.session_state["response"]=reply
+ st.rerun()
