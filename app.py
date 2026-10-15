@@ -30,18 +30,13 @@ PAGE_CSS = """
 [data-testid="stMainBlockContainer"]{max-width:1080px;padding:2.5rem 2rem 3rem;}
 [data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li {color:#42586A;}
 h1,h2,h3 {color:#18324C !important;letter-spacing:-.04em;}
-.brand-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0 24px;border-bottom:1px solid #E1E3DB;margin-bottom:40px;gap:20px;}
+.brand-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0 24px;border-bottom:1px solid #E1E3DB;margin-bottom:28px;gap:20px;}
 .brand{font-size:24px;font-weight:750;letter-spacing:-1px;color:#18324C;display:flex;align-items:center;gap:10px;}
 .brand-mark{display:inline-grid;place-items:center;width:34px;height:34px;border:1.5px solid #234A68;border-radius:50%;font-size:20px;}
-.brand-note{font-size:11px;font-weight:400;letter-spacing:2px;color:#7B8791;margin-left:6px;}
 .model-pill{font-size:11px;white-space:nowrap;color:#657E63;background:#EFF3EA;border:1px solid #DFE7D8;border-radius:30px;padding:7px 12px;}
-.eyebrow{font-size:11px;color:#8D7957;letter-spacing:2px;font-weight:600;}
-.hero-title{font-size:43px !important;font-weight:650 !important;line-height:1.35 !important;margin:14px 0 13px !important;padding:0 !important;}
+.hero-title{font-size:38px !important;font-weight:650 !important;line-height:1.35 !important;margin:14px 0 13px !important;padding:0 !important;}
 .hero-title em{font-style:normal;color:#6D8469;}
-.hero-desc{font-size:14px !important;color:#788591 !important;line-height:1.9;margin-bottom:26px !important;}
-.flow{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:11px;color:#72808B;margin:0 0 30px;}
-.flow span{padding:6px 10px;border:1px solid #E4E4DD;border-radius:5px;background:#FBFAF6;}
-.flow b{font-weight:400;color:#B2B8B7;}
+.hero-desc{font-size:14px !important;color:#788591 !important;line-height:1.9;margin-bottom:24px !important;}
 .st-key-input_panel{background:#FFFEFB;border:1px solid #E2E3DD;border-radius:15px;padding:25px !important;box-shadow:0 8px 30px #18324C04;}
 .section-label{font-size:12px;font-weight:600;letter-spacing:1px;color:#597083;padding:7px 0;}
 .section-label span{color:#8A9AA5;font-weight:400;margin-right:10px;}
@@ -80,14 +75,10 @@ h1,h2,h3 {color:#18324C !important;letter-spacing:-.04em;}
 .draft-paper{background:#FFFEFB;border:1px solid #E2E5DE;border-radius:10px;padding:32px 38px;margin:18px 0;color:#42586A;font-size:14px;line-height:2.05;overflow-wrap:anywhere;}
 .draft-paper h3{font-size:23px !important;line-height:1.6;margin:0 0 24px;padding:0;letter-spacing:-.6px;}
 .draft-paper .body{white-space:pre-wrap;}
-.empty-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:18px;margin:26px 0 5px;align-items:start;}
-.empty-item{min-width:0;padding:20px;border:1px solid #E3E5DD;border-radius:9px;background:#F7F7F1;}
-.empty-item small{display:block;font-size:11px;color:#6D8064;letter-spacing:1px;white-space:nowrap;line-height:1.5;}
-.empty-item h3{font-size:15px !important;letter-spacing:0;margin:10px 0 7px;padding:0;font-weight:600;line-height:1.6 !important;word-break:normal;overflow-wrap:break-word;}
-.empty-item p{font-size:13px !important;color:#65776F !important;line-height:1.8;margin:0;}
 .notice{font-size:11px;color:#9A8A6B;line-height:1.8;border-left:2px solid #D6C9AC;padding:2px 12px;margin:22px 0;}
 .footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 24px;border-top:1px solid #E1E3DB;margin-top:32px;padding:22px 0 calc(130px + env(safe-area-inset-bottom,0px));color:#71818B;font-size:11px;letter-spacing:.2px;line-height:1.8;}.footer span{min-width:0;max-width:100%;overflow-wrap:anywhere;}
-@media(max-width:640px){[data-testid="stMainBlockContainer"]{padding:1.2rem 1.15rem 2rem;}.brand-row{margin-bottom:30px;gap:8px;}.brand{font-size:20px;gap:6px;}.brand-note{display:none;}.model-pill{font-size:9px;padding:6px 8px;}.hero-title{font-size:31px !important;}.hero-desc{font-size:12px !important;}.st-key-input_panel{padding:18px !important;}.analysis-card{min-height:0;}.draft-paper{padding:23px;}.empty-grid{gap:12px;grid-template-columns:1fr;}.empty-item{padding:18px 20px;}.empty-item p{font-size:13px !important;}.footer{flex-direction:column;gap:6px;}.topic-card{padding:20px;gap:16px;}.result-heading h2{font-size:23px !important;}}
+@media(max-width:640px){[data-testid="stMainBlockContainer"]{padding:1rem 1.1rem 2rem;}.brand-row{margin-bottom:24px;padding:8px 0 18px;}.brand{font-size:21px;gap:7px;}.brand-mark{width:29px;height:29px;font-size:17px;}.model-pill{font-size:10px;padding:5px 9px;}.hero-title{font-size:30px !important;margin:0 0 8px !important;}.hero-desc{font-size:13px !important;margin-bottom:20px !important;}.st-key-input_panel{padding:16px !important;}.analysis-card{min-height:0;}.draft-paper{padding:22px;}.topic-card{padding:18px;gap:14px;}.result-heading h2{font-size:23px !important;}.footer{font-size:10px;}}
+
 </style>
 """
 
@@ -225,20 +216,19 @@ def fill_example():
 
 def render_result(data: dict, platform: str):
     st.markdown(
-        "<div class='result-heading'><div><div class='eyebrow'>YOUR CONTENT PLAN / 传播方案</div>"
-        "<h2>让好想法，被更多人看见。</h2></div>"
+        "<div class='result-heading'><div><h2>生成结果</h2></div>"
         f"<span class='result-badge'>已生成 · {html.escape(platform)}</span></div>",
         unsafe_allow_html=True,
     )
     tabs = st.tabs(["项目分析", "传播选题", f"{platform}初稿"])
     with tabs[0]:
         st.markdown(
-            "<div class='one-liner'><small>IN ONE SENTENCE / 一句话读懂项目</small>"
+            "<div class='one-liner'><small>一句话定位</small>"
             f"<p>{html.escape(data['one_liner'])}</p></div>", unsafe_allow_html=True,
         )
         for col, title, label, field in zip(
             st.columns(3), ["目标用户", "核心痛点", "产品卖点"],
-            ["AUDIENCE", "PROBLEM", "VALUE"], ["target_users", "pain_points", "selling_points"],
+            ["01", "02", "03"], ["target_users", "pain_points", "selling_points"],
         ):
             with col:
                 items = "".join(f"<li>{html.escape(str(x))}</li>" for x in data[field])
@@ -274,34 +264,30 @@ def main():
     st.set_page_config(page_title="FounderLens｜AI创业项目传播助手", page_icon="◉", layout="centered")
     st.markdown(PAGE_CSS, unsafe_allow_html=True)
     st.markdown(
-        "<div class='brand-row'><div class='brand'><span class='brand-mark'>◉</span>FounderLens"
-        "<span class='brand-note'>创业项目传播助手</span></div>"
-        f"<span class='model-pill'>● 百灵 {html.escape(LING_MODEL)}</span></div>"
-        "<div class='eyebrow'>FROM IDEAS TO STORIES / 从项目资料，到传播灵感</div>"
-        "<h1 class='hero-title'>读懂项目，<em>找到值得说的故事。</em></h1>"
-        "<p class='hero-desc'>为品牌运营与内容策划而做。把一段项目介绍，变成清晰的定位、有想法的选题和自然的内容初稿。</p>"
-        "<div class='flow'><span>01 理解项目</span><b>→</b><span>02 挖掘选题</span><b>→</b><span>03 写出初稿</span></div>",
+        "<div class='brand-row'><div class='brand'><span class='brand-mark'>◉</span>FounderLens</div>"
+        "<span class='model-pill'>百灵驱动</span></div>"
+        "<h1 class='hero-title'>把项目，<em>讲清楚。</em></h1>"
+        "<p class='hero-desc'>输入项目介绍，生成传播选题与文案。</p>",
         unsafe_allow_html=True,
     )
     with st.container(key="input_panel"):
         left, right = st.columns([3, 1])
         with left:
-            st.markdown("<div class='section-label'><span>01</span>告诉我们，你的项目是什么？</div>", unsafe_allow_html=True)
+            st.markdown("<div class='section-label'>项目介绍</div>", unsafe_allow_html=True)
         with right:
-            st.button("试用示例 ↗", on_click=fill_example, use_container_width=True)
+            st.button("填入示例", on_click=fill_example, use_container_width=True)
         intro = st.text_area(
-            "项目介绍", label_visibility="collapsed", height=190, key="intro", max_chars=12000,
-            placeholder="粘贴项目简介、访谈资料或产品说明。\n\n可以包含：目标用户、核心功能、解决的问题，以及当前发展阶段。",
+            "项目介绍", label_visibility="collapsed", height=155, key="intro", max_chars=12000,
+            placeholder="你的项目为谁解决什么问题？",
         )
-        st.caption(f"资料越具体，结果越贴合。请勿输入敏感信息。 · {len(intro):,} / 12,000")
-        st.markdown("<div class='section-label'><span>02</span>选择内容发布平台</div>", unsafe_allow_html=True)
+        st.caption("请勿输入敏感信息")
+        st.markdown("<div class='section-label'>发布平台</div>", unsafe_allow_html=True)
         platform = st.radio("内容发布平台", ["小红书", "公众号"], horizontal=True, label_visibility="collapsed", key="selected_platform")
-        st.caption("小红书 · 轻松自然的笔记风格" if platform == "小红书" else "公众号 · 适合品牌与行业传播的图文风格")
-        generate = st.button("生成传播方案  ↗", type="primary", use_container_width=True, disabled=not intro.strip() or not LING_API_KEY)
+        generate = st.button("生成方案", type="primary", use_container_width=True, disabled=not intro.strip() or not LING_API_KEY)
         if not LING_API_KEY:
             st.warning("服务尚未配置，请由应用维护者配置百灵 API Key 后重启。")
         if generate:
-            with st.spinner("正在理解项目、策划选题并撰写初稿，请稍候…"):
+            with st.spinner("正在生成，请稍候…"):
                 try:
                     data = normalize(extract_json(call_ling(intro.strip(), platform)))
                     st.session_state["result"] = data
@@ -317,19 +303,10 @@ def main():
                     st.error("本次生成结果暂时无法读取，请重新生成。")
     if st.session_state.get("result"):
         if st.session_state.get("platform") != platform or st.session_state.get("result_intro") != intro:
-            st.caption("下方为上次生成的方案。资料或平台已更改，点击「生成传播方案」即可更新。")
+            st.caption("下方为上次生成的方案。资料或平台已更改，点击「生成方案」即可更新。")
         render_result(st.session_state["result"], st.session_state.get("platform", "公众号"))
-    else:
-        st.markdown(
-            "<div class='empty-grid'><div class='empty-item'><small>01 / 理解项目</small><h3>先把项目说清楚</h3>"
-            "<p>提炼目标用户、核心痛点与产品价值。</p></div>"
-            "<div class='empty-item'><small>02 / 策划选题</small><h3>找到传播的切入点</h3>"
-            "<p>生成 3 个选题，每个都有推荐理由。</p></div>"
-            "<div class='empty-item'><small>03 / 内容创作</small><h3>写出适合平台的内容</h3>"
-            "<p>公众号图文、小红书笔记，一键生成初稿。</p></div></div>", unsafe_allow_html=True,
-        )
-    st.markdown("<div class='footer'><span>FounderLens · 让项目价值更容易被看见</span>"
-                "<span>Powered by 蚂蚁百灵 · AI 初稿，人工把关</span></div>", unsafe_allow_html=True)
+    st.markdown("<div class='footer'>百灵驱动 · AI 内容请核实后使用</div>", unsafe_allow_html=True)
+
 
 
 if __name__ == "__main__":
